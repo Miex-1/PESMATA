@@ -7,7 +7,7 @@
 
 <!-- Link preview (Open Graph) — pastikan og:url sepadan dengan URL sebenar selepas dihoskan -->
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://miex-1.github.io/PESMATA/">
+<meta property="og:url" content="https://pesmata.my/">
 <meta property="og:title" content="Karnival Pesmata 2026 — 22 Ogos, SK Taman Permata">
 <meta property="og:description" content="Permata Penyayang, Permata Cemerlang. Masuk PERCUMA! 14+ aktiviti menanti. Kupon bermula RM10 sahaja — setiap pembelian menyumbang kepada Tabung Pembangunan Sekolah.">
 <meta property="og:image" content="https://raw.githubusercontent.com/Miex-1/PESMATA/main/FLYERPESMATA.jpg">
@@ -448,7 +448,7 @@ footer .hakcipta{font-size:.8rem;opacity:.7}
   btn.addEventListener('click', function(){
     var url = window.location.href;
     if (navigator.share) {
-      navigator.share({ title: 'Karnival Pesmata 2026', text: teks, url: url })
+      navigator.share({ title: 'Karnival Pesmata 2026', text: teks + '\n\n' + url })
         .catch(function(err){
           if (err && err.name !== 'AbortError') bukaWhatsApp(url);
         });
@@ -481,7 +481,7 @@ footer .hakcipta{font-size:.8rem;opacity:.7}
       .then(function(blob){
         var fail = new File([blob], 'FlyerKarnivalPesmata.jpg', { type: 'image/jpeg' });
         if (navigator.canShare && navigator.canShare({ files: [fail] })) {
-          return navigator.share({ files: [fail], title: 'Karnival Pesmata 2026', text: teks + '\n' + urlLaman });
+          return navigator.share({ files: [fail], title: 'Karnival Pesmata 2026', text: teks + '\n\n' + urlLaman });
         }
         throw new Error('kongsi fail tidak disokong');
       })
