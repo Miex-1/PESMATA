@@ -110,12 +110,9 @@ a:focus-visible,summary:focus-visible{outline:3px solid var(--merah);outline-off
 
 /* ---------- LOGO ---------- */
 .logo-sekolah{
-  width:110px;height:110px;object-fit:contain;
+  width:130px;height:auto;
   display:block;margin:0 auto 18px;
-  background:var(--putih);
-  border:3px solid var(--biru-malam);border-radius:50%;
-  padding:10px;
-  box-shadow:4px 4px 0 var(--biru-malam);
+  filter:drop-shadow(3px 3px 0 rgba(30,42,82,.25));
 }
 
 /* ---------- COUNTDOWN ---------- */
@@ -428,23 +425,22 @@ footer .hakcipta{font-size:.8rem;opacity:.7}
 /* ---------- BUTANG KONGSI ---------- */
 (function(){
   var btn = document.getElementById('btn-share');
-  var dataKongsi = {
-    title: 'Karnival Pesmata 2026',
-    text: 'Jom ke Karnival Pesmata! 22 Ogos 2026, SK Taman Permata. Masuk PERCUMA, kupon bermula RM10 — menyumbang kepada Tabung Pembangunan Sekolah. \uD83C\uDF89',
-    url: window.location.href
-  };
+  if (!btn) return;
+  var teks = 'Jom ke Karnival Pesmata! \uD83C\uDF89 22 Ogos 2026, SK Taman Permata. Masuk PERCUMA, kupon bermula RM10 \u2014 menyumbang kepada Tabung Pembangunan Sekolah.';
   btn.addEventListener('click', function(){
+    var url = window.location.href;
     if (navigator.share) {
-      navigator.share(dataKongsi).catch(function(){});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(dataKongsi.url).then(function(){
-        var badan = btn.querySelector('.badan');
-        var asal = badan.textContent;
-        badan.textContent = 'Pautan Disalin!';
-        setTimeout(function(){ badan.textContent = asal; }, 2000);
-      });
+      navigator.share({ title: 'Karnival Pesmata 2026', text: teks, url: url })
+        .catch(function(err){
+          if (err && err.name !== 'AbortError') bukaWhatsApp(url);
+        });
+    } else {
+      bukaWhatsApp(url);
     }
   });
+  function bukaWhatsApp(url){
+    window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(teks + '\n\n' + url), '_blank');
+  }
 })();
 </script>
 </body>
