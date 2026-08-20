@@ -17,7 +17,7 @@
   .search input{width:100%;padding:20px 22px;font:500 20px 'IBM Plex Sans',sans-serif;border:2px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);outline:none}
   .search input:focus{border-color:var(--accent)}
   .hint{margin:10px 2px 0;font-size:13px;color:var(--muted);min-height:18px}
-  .banner{margin:0 0 22px;background:var(--paper);border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(23,33,43,.06),0 10px 30px -14px rgba(23,33,43,.25)}
+  .banner{margin:22px 0 0;background:var(--paper);border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(23,33,43,.06),0 10px 30px -14px rgba(23,33,43,.25)}
   .banner:empty{display:none}
   .banner img{width:100%;max-width:420px;display:block;margin:0 auto;border-radius:10px}
   .banner figcaption{text-align:center;font-size:13px;color:var(--muted);margin-top:10px}
@@ -65,13 +65,13 @@
 </head>
 <body>
 <header>
-  <h1>Semak <em>Order</em></h1>
-  <p class="sub">Taip nama untuk lihat tempahan, jumlah bayaran dan pilih cara bayar.</p>
+  <h1>Semak <em>Bayaran</em></h1>
+  <p class="sub">Taip nama untuk lihat tempahan dan jumlah bayaran.</p>
 </header>
 <main>
-  <figure class="banner" id="banner"></figure>
   <div class="search"><input id="q" type="search" placeholder="Cth: Jamilah" autocomplete="off" autofocus></div>
   <p class="hint" id="hint"></p>
+  <figure class="banner" id="banner"></figure>
   <div class="results" id="results"></div>
 </main>
 
