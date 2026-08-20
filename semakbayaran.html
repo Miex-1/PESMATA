@@ -43,7 +43,10 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   @media(max-width:420px){.methods{grid-template-columns:1fr}}
   .overlay{position:fixed;inset:0;background:rgba(23,33,43,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
-  .modal{background:var(--paper);border-radius:16px;max-width:440px;width:100%;max-height:95vh;overflow:auto;padding:24px;font-family:'IBM Plex Sans',sans-serif}
+  .modal{background:var(--paper);border-radius:16px;max-width:440px;width:100%;max-height:95vh;overflow:auto;padding:24px;font-family:'IBM Plex Sans',sans-serif;position:relative}
+  .modal .close{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;border:0;background:#F0F3F6;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+  .modal .close:hover{background:var(--line);color:var(--ink)}
+  .modal .change{display:block;width:100%;margin-top:10px;padding:10px;border:0;background:none;color:var(--accent);font:500 14px 'IBM Plex Sans',sans-serif;cursor:pointer;text-decoration:underline}
   .modal h3{font-family:'DM Serif Display',serif;font-weight:400;font-size:22px;margin:0 0 2px}
   .modal .who{color:var(--muted);font-size:13px;margin-bottom:14px}
   .modal img{width:100%;border-radius:10px;display:block;border:1px solid var(--line)}
@@ -176,6 +179,7 @@ function pay(rowIds,method,btn){
   const cash=method==='CASH';
   const ov=document.createElement('div'); ov.className='overlay';
   ov.innerHTML=`<div class="modal" role="dialog">
+    <button class="close" aria-label="Tutup" title="Tutup">×</button>
     ${cash?`
     <h3>Terima kasih!</h3>
     <div class="who">${nama}</div>
@@ -186,17 +190,22 @@ function pay(rowIds,method,btn){
     <div class="who">${nama}</div>
     <img src="${PAYMENT_IMG}" alt="Maklumat bayaran">
     <div class="amount">Jumlah perlu bayar<b>${total}</b></div>`}
-    <div class="btns">${cash?'':'<button class="cancel">Batal</button>'}<button class="done">Selesai</button></div>
+    <div class="btns"><button class="cancel">Batal</button><button class="done">Selesai</button></div>
+    <button class="change">Tersalah pilih? Tukar cara bayaran</button>
   </div>`;
   document.body.appendChild(ov);
-  ov.querySelector('.cancel')?.addEventListener('click',()=>ov.remove());
+  const close=()=>{ov.remove();document.removeEventListener('keydown',onKey);};
+  const onKey=e=>{if(e.key==='Escape')close();};
+  document.addEventListener('keydown',onKey);
+  ov.querySelectorAll('.cancel,.close,.change').forEach(b=>b.onclick=close);
+  ov.onclick=e=>{if(e.target===ov)close();};
   ov.querySelector('.done').onclick=()=>{
     const b=ov.querySelector('.done'); b.disabled=true; b.textContent='Merekod…';
     const rows=rowIds.split(',').map(Number);
     api.pay(rows,method).then(r=>{
       if(r.error) throw new Error(r.error);
       all.forEach(h=>{if(rows.includes(h.row)){h.cara=method;h.status=r.status;h.tarikh=r.tarikh;}});
-      ov.remove();
+      close();
       slip.querySelector('.pay').outerHTML=statusBox(method,r.status,r.tarikh);
     }).catch(e=>{alert('Gagal rekod: '+e.message);b.disabled=false;b.textContent='Selesai';});
   };
