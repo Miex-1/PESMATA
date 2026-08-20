@@ -17,6 +17,10 @@
   .search input{width:100%;padding:20px 22px;font:500 20px 'IBM Plex Sans',sans-serif;border:2px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);outline:none}
   .search input:focus{border-color:var(--accent)}
   .hint{margin:10px 2px 0;font-size:13px;color:var(--muted);min-height:18px}
+  .banner{margin:0 0 22px;background:var(--paper);border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(23,33,43,.06),0 10px 30px -14px rgba(23,33,43,.25)}
+  .banner:empty{display:none}
+  .banner img{width:100%;max-width:420px;display:block;margin:0 auto;border-radius:10px}
+  .banner figcaption{text-align:center;font-size:13px;color:var(--muted);margin-top:10px}
   .results{margin-top:26px;display:grid;gap:18px}
   .slip{background:var(--paper);border-radius:6px;padding:26px 28px;font-family:'IBM Plex Mono',monospace;box-shadow:0 1px 2px rgba(23,33,43,.06),0 10px 30px -14px rgba(23,33,43,.25);position:relative}
   .slip::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:10px;background:radial-gradient(circle at 8px 10px,var(--bg) 6px,transparent 6.5px) 0 0/16px 16px repeat-x}
@@ -42,6 +46,21 @@
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
   @keyframes sp{to{transform:rotate(360deg)}}
   @media(max-width:420px){.methods{grid-template-columns:1fr}}
+  .overlay{position:fixed;inset:0;background:rgba(23,33,43,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal{background:var(--paper);border-radius:16px;max-width:440px;width:100%;max-height:95vh;overflow:auto;padding:24px;font-family:'IBM Plex Sans',sans-serif}
+  .modal h3{font-family:'DM Serif Display',serif;font-weight:400;font-size:22px;margin:0 0 2px}
+  .modal .who{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .modal img{width:100%;border-radius:10px;display:block;border:1px solid var(--line)}
+  .modal .noimg{padding:30px;text-align:center;color:var(--muted);background:#F6F8FA;border-radius:10px;font-size:13px}
+  .modal .amount{margin:16px 0 4px;text-align:center;font-size:13px;color:var(--muted)}
+  .modal .amount b{display:block;font-family:'DM Serif Display',serif;font-size:40px;color:var(--ink);font-weight:400;line-height:1.1}
+  .modal .bank{margin:12px 0;padding:12px 14px;background:#F6F8FA;border-radius:10px;font-size:14px;line-height:1.7}
+  .modal .bank b{font-family:'IBM Plex Mono',monospace}
+  .modal .nota{font-size:13px;color:var(--muted);text-align:center;margin:10px 0}
+  .modal .btns{display:flex;gap:8px;margin-top:16px}
+  .modal .btns button{flex:1;padding:14px;border-radius:10px;font:600 15px 'IBM Plex Sans',sans-serif;cursor:pointer;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
+  .modal .btns .done{background:var(--accent);border-color:var(--accent);color:#fff}
+  .modal .btns button:disabled{opacity:.6;cursor:wait}
 </style>
 </head>
 <body>
@@ -50,12 +69,18 @@
   <p class="sub">Taip nama untuk lihat tempahan, jumlah bayaran dan pilih cara bayar.</p>
 </header>
 <main>
+  <figure class="banner" id="banner"></figure>
   <div class="search"><input id="q" type="search" placeholder="Cth: Jamilah" autocomplete="off" autofocus></div>
   <p class="hint" id="hint"></p>
   <div class="results" id="results"></div>
 </main>
 
 <script>
+// >>> GAMBAR TETAP DI BAWAH KOTAK CARIAN <<<
+const BANNER_IMG  = 'https://raw.githubusercontent.com/Miex-1/PESMATA/refs/heads/main/payment.png';   // pautan gambar (QR / maklumat bank)
+const BANNER_TEXT = 'Imbas QR atau transfer mengikut jumlah yang dipaparkan';  // kapsyen (kosongkan '' jika tak perlu)
+const BANNER_LINK = '';                         // pilihan: pautan bila gambar diklik (kosongkan '' jika tiada)
+
 // >>> TAMPAL URL WEB APP APPS SCRIPT AWAK DI SINI <<<
 const API='https://script.google.com/macros/s/AKfycbzBhZtEt8Rfeea0FtsRhN3ajQXmAZGWKO4jybeLniRSg0yT7lQJmZ9H6Kmf9dc1q3FALw/exec';
 
@@ -77,6 +102,10 @@ const api={
   pay:(rows,method)=>jsonp({action:'pay',rows:rows.join(','),method})
 };
 const $=s=>document.querySelector(s);
+if(BANNER_IMG && !BANNER_IMG.startsWith('PAUTAN')){
+  const img=`<img src="${BANNER_IMG}" alt="Maklumat bayaran">`;
+  $('#banner').innerHTML=(BANNER_LINK?`<a href="${BANNER_LINK}" target="_blank" rel="noopener">${img}</a>`:img)+(BANNER_TEXT?`<figcaption>${BANNER_TEXT}</figcaption>`:'');
+}
 const rm=n=>'RM '+Number(n).toFixed(2);
 let settings={}, all=[], ready=false;
 const norm=s=>s.toUpperCase().replace(/\s+/g,' ').trim();
@@ -140,25 +169,38 @@ function renderSlip(g){
 
 function statusBox(cara,status,tarikh){
   const wait=status!=='DIBAYAR';
-  let info='';
-  if(cara==='QR CODE') info=`<div class="details">Imbas QR di bawah dan bayar jumlah di atas.${settings.qr?`<img src="${settings.qr}" alt="QR bayaran">`:'<br><i>(QR belum diletakkan — sila isi tab TETAPAN)</i>'}</div>`;
-  if(cara==='ONLINE BANKING') info=`<div class="details">Sila transfer ke:<br><b>${settings.bank||'—'}</b><br>No akaun: <b>${settings.akaun||'—'}</b><br>Nama: <b>${settings.pemilik||'—'}</b></div>`;
-  if(cara==='CASH') info=`<div class="details">Sila bayar tunai kepada penganjur.</div>`;
-  return `<div class="paid ${wait?'wait':''}"><b>${cara} — ${status}</b>Direkod pada ${tarikh}</div>${info}`;
+  return `<div class="paid ${wait?'wait':''}"><b>${cara} — ${status}</b>Direkod pada ${tarikh}</div>`;
 }
 
 function pay(rowIds,method,btn){
-  const wrap=btn.closest('.pay');
-  wrap.querySelectorAll('button').forEach(b=>{b.disabled=true;if(b===btn)b.classList.add('sel');});
-  const rows=rowIds.split(',').map(Number);
-  api.pay(rows,method).then(r=>{
-    if(r.error) throw new Error(r.error);
-    all.forEach(h=>{if(rows.includes(h.row)){h.cara=method;h.status=r.status;h.tarikh=r.tarikh;}});
-    wrap.outerHTML=statusBox(method,r.status,r.tarikh);
-  }).catch(e=>{
-    alert('Gagal rekod: '+e.message);
-    wrap.querySelectorAll('button').forEach(b=>{b.disabled=false;b.classList.remove('sel');});
-  });
+  const slip=btn.closest('.slip');
+  const nama=slip.querySelector('.name').textContent;
+  const total=slip.querySelector('.total .amt').textContent;
+  const img={'QR CODE':settings.imgQr,'ONLINE BANKING':settings.imgBank,'CASH':settings.imgCash}[method];
+  const bank=method==='ONLINE BANKING'&&(settings.bank||settings.akaun)
+    ?`<div class="bank">${settings.bank||''}<br>No akaun: <b>${settings.akaun||'—'}</b><br>Nama: ${settings.pemilik||'—'}</div>`:'';
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML=`<div class="modal" role="dialog">
+    <h3>${method==='QR CODE'?'Imbas QR untuk bayar':method==='ONLINE BANKING'?'Maklumat pembayaran':'Bayaran tunai'}</h3>
+    <div class="who">${nama}</div>
+    ${img?`<img src="${img}" alt="${method}">`:`<div class="noimg">Gambar untuk ${method} belum diletakkan dalam tab TETAPAN.</div>`}
+    ${bank}
+    <div class="amount">Jumlah perlu bayar<b>${total}</b></div>
+    ${settings.nota?`<div class="nota">${settings.nota}</div>`:''}
+    <div class="btns"><button class="cancel">Batal</button><button class="done">Selesai</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('.cancel').onclick=()=>ov.remove();
+  ov.querySelector('.done').onclick=()=>{
+    const b=ov.querySelector('.done'); b.disabled=true; b.textContent='Merekod…';
+    const rows=rowIds.split(',').map(Number);
+    api.pay(rows,method).then(r=>{
+      if(r.error) throw new Error(r.error);
+      all.forEach(h=>{if(rows.includes(h.row)){h.cara=method;h.status=r.status;h.tarikh=r.tarikh;}});
+      ov.remove();
+      slip.querySelector('.pay').outerHTML=statusBox(method,r.status,r.tarikh);
+    }).catch(e=>{alert('Gagal rekod: '+e.message);b.disabled=false;b.textContent='Selesai';});
+  };
 }
 </script>
 </body>
