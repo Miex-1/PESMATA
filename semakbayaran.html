@@ -60,25 +60,36 @@
 const API='https://script.google.com/macros/s/AKfycbzBhZtEt8Rfeea0FtsRhN3ajQXmAZGWKO4jybeLniRSg0yT7lQJmZ9H6Kmf9dc1q3FALw/exec';
 
 const api={
-  search:q=>fetch(API+'?action=search&q='+encodeURIComponent(q)).then(r=>r.json()),
+  all:()=>fetch(API+'?action=all').then(r=>r.json()),
   pay:(rows,method)=>fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'pay',rows,method})}).then(r=>r.json())
 };
 const $=s=>document.querySelector(s);
 const rm=n=>'RM '+Number(n).toFixed(2);
-let timer, settings={}, lastData=[];
+let settings={}, all=[], ready=false;
+const norm=s=>s.toUpperCase().replace(/\s+/g,' ').trim();
 
-$('#q').addEventListener('input',()=>{
-  clearTimeout(timer);
-  const v=$('#q').value.trim();
-  if(v.length<2){$('#results').innerHTML='';$('#hint').textContent='';return;}
-  $('#hint').innerHTML='<span class="spin"></span>Mencari…';
-  timer=setTimeout(()=>api.search(v).then(r=>r.error?err(new Error(r.error)):show(r)).catch(err),400);
-});
+// Muat semua data sekali, kemudian carian jadi serta-merta
+$('#hint').innerHTML='<span class="spin"></span>Menyediakan data…';
+$('#q').disabled=true;
+api.all().then(r=>{
+  if(r.error) throw new Error(r.error);
+  all=r.hits.map(h=>({...h,_n:norm(h.nama)})); settings=r.settings; ready=true;
+  $('#q').disabled=false; $('#q').focus(); $('#hint').textContent='';
+  if($('#q').value.trim()) search();
+}).catch(err);
 
-function err(e){$('#hint').textContent='Ralat: '+e.message;}
+$('#q').addEventListener('input',search);
+function search(){
+  if(!ready) return;
+  const v=norm($('#q').value);
+  if(v.length<2){$('#results').innerHTML='';return;}
+  show({hits:all.filter(h=>h._n.includes(v)),settings});
+}
+
+function err(e){$('#hint').textContent='Ralat: '+e.message+' — cuba muat semula halaman.';}
 
 function show(res){
-  settings=res.settings; lastData=res.hits; $('#hint').textContent='';
+  settings=res.settings;
   if(!res.hits.length){$('#results').innerHTML=`<div class="empty">Tiada order untuk "${$('#q').value}".</div>`;return;}
   const groups={};
   // Gabung order jika nama asas sama (abaikan teks dalam kurungan, cth "(ANAK)")
@@ -129,6 +140,7 @@ function pay(rowIds,method,btn){
   const rows=rowIds.split(',').map(Number);
   api.pay(rows,method).then(r=>{
     if(r.error) throw new Error(r.error);
+    all.forEach(h=>{if(rows.includes(h.row)){h.cara=method;h.status=r.status;h.tarikh=r.tarikh;}});
     wrap.outerHTML=statusBox(method,r.status,r.tarikh);
   }).catch(e=>{
     alert('Gagal rekod: '+e.message);
