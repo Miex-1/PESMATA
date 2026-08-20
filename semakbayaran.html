@@ -17,10 +17,6 @@
   .search input{width:100%;padding:20px 22px;font:500 20px 'IBM Plex Sans',sans-serif;border:2px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);outline:none}
   .search input:focus{border-color:var(--accent)}
   .hint{margin:10px 2px 0;font-size:13px;color:var(--muted);min-height:18px}
-  .banner{margin:22px 0 0;background:var(--paper);border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(23,33,43,.06),0 10px 30px -14px rgba(23,33,43,.25)}
-  .banner:empty{display:none}
-  .banner img{width:100%;max-width:420px;display:block;margin:0 auto;border-radius:10px}
-  .banner figcaption{text-align:center;font-size:13px;color:var(--muted);margin-top:10px}
   .results{margin-top:26px;display:grid;gap:18px}
   .slip{background:var(--paper);border-radius:6px;padding:26px 28px;font-family:'IBM Plex Mono',monospace;box-shadow:0 1px 2px rgba(23,33,43,.06),0 10px 30px -14px rgba(23,33,43,.25);position:relative}
   .slip::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:10px;background:radial-gradient(circle at 8px 10px,var(--bg) 6px,transparent 6.5px) 0 0/16px 16px repeat-x}
@@ -51,11 +47,8 @@
   .modal h3{font-family:'DM Serif Display',serif;font-weight:400;font-size:22px;margin:0 0 2px}
   .modal .who{color:var(--muted);font-size:13px;margin-bottom:14px}
   .modal img{width:100%;border-radius:10px;display:block;border:1px solid var(--line)}
-  .modal .noimg{padding:30px;text-align:center;color:var(--muted);background:#F6F8FA;border-radius:10px;font-size:13px}
   .modal .amount{margin:16px 0 4px;text-align:center;font-size:13px;color:var(--muted)}
   .modal .amount b{display:block;font-family:'DM Serif Display',serif;font-size:40px;color:var(--ink);font-weight:400;line-height:1.1}
-  .modal .bank{margin:12px 0;padding:12px 14px;background:#F6F8FA;border-radius:10px;font-size:14px;line-height:1.7}
-  .modal .bank b{font-family:'IBM Plex Mono',monospace}
   .modal .nota{font-size:13px;color:var(--muted);text-align:center;margin:10px 0}
   .modal .btns{display:flex;gap:8px;margin-top:16px}
   .modal .btns button{flex:1;padding:14px;border-radius:10px;font:600 15px 'IBM Plex Sans',sans-serif;cursor:pointer;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
@@ -72,14 +65,11 @@
   <div class="search"><input id="q" type="search" placeholder="Cth: Jamilah" autocomplete="off" autofocus></div>
   <p class="hint" id="hint"></p>
   <div class="results" id="results"></div>
-  <figure class="banner" id="banner"></figure>
 </main>
 
 <script>
-// >>> GAMBAR TETAP DI BAWAH KOTAK CARIAN <<<
-const BANNER_IMG  = 'https://raw.githubusercontent.com/Miex-1/PESMATA/refs/heads/main/payment.png';   // pautan gambar (QR / maklumat bank)
-const BANNER_TEXT = 'Imbas QR atau transfer mengikut jumlah yang dipaparkan';  // kapsyen (kosongkan '' jika tak perlu)
-const BANNER_LINK = '';                         // pilihan: pautan bila gambar diklik (kosongkan '' jika tiada)
+// >>> GAMBAR MAKLUMAT BAYARAN (dipaparkan dalam pop-up QR Code & Online Banking) <<<
+const PAYMENT_IMG = 'https://raw.githubusercontent.com/Miex-1/PESMATA/refs/heads/main/payment.png';
 
 // >>> TAMPAL URL WEB APP APPS SCRIPT AWAK DI SINI <<<
 const API='https://script.google.com/macros/s/AKfycbzBhZtEt8Rfeea0FtsRhN3ajQXmAZGWKO4jybeLniRSg0yT7lQJmZ9H6Kmf9dc1q3FALw/exec';
@@ -102,12 +92,8 @@ const api={
   pay:(rows,method)=>jsonp({action:'pay',rows:rows.join(','),method})
 };
 const $=s=>document.querySelector(s);
-if(BANNER_IMG && !BANNER_IMG.startsWith('PAUTAN')){
-  const img=`<img src="${BANNER_IMG}" alt="Maklumat bayaran">`;
-  $('#banner').innerHTML=(BANNER_LINK?`<a href="${BANNER_LINK}" target="_blank" rel="noopener">${img}</a>`:img)+(BANNER_TEXT?`<figcaption>${BANNER_TEXT}</figcaption>`:'');
-}
 const rm=n=>'RM '+Number(n).toFixed(2);
-let settings={}, all=[], ready=false;
+let all=[], ready=false;
 const norm=s=>s.toUpperCase().replace(/\s+/g,' ').trim();
 
 // Muat semua data sekali, kemudian carian jadi serta-merta
@@ -115,7 +101,7 @@ $('#hint').innerHTML='<span class="spin"></span>Menyediakan data…';
 $('#q').disabled=true;
 api.all().then(r=>{
   if(r.error) throw new Error(r.error);
-  all=r.hits.map(h=>({...h,_n:norm(h.nama)})); settings=r.settings; ready=true;
+  all=r.hits.map(h=>({...h,_n:norm(h.nama)})); ready=true;
   $('#q').disabled=false; $('#q').focus(); $('#hint').textContent='';
   if($('#q').value.trim()) search();
 }).catch(err);
@@ -125,13 +111,12 @@ function search(){
   if(!ready) return;
   const v=norm($('#q').value);
   if(v.length<2){$('#results').innerHTML='';return;}
-  show({hits:all.filter(h=>h._n.includes(v)),settings});
+  show({hits:all.filter(h=>h._n.includes(v))});
 }
 
 function err(e){$('#hint').textContent='Ralat: '+e.message+' — cuba muat semula halaman.';}
 
 function show(res){
-  settings=res.settings;
   if(!res.hits.length){$('#results').innerHTML=`<div class="empty">Tiada order untuk "${$('#q').value}".</div>`;return;}
   const groups={};
   // Gabung order jika nama asas sama (abaikan teks dalam kurungan, cth "(ANAK)")
@@ -176,21 +161,23 @@ function pay(rowIds,method,btn){
   const slip=btn.closest('.slip');
   const nama=slip.querySelector('.name').textContent;
   const total=slip.querySelector('.total .amt').textContent;
-  const img={'QR CODE':settings.imgQr,'ONLINE BANKING':settings.imgBank,'CASH':settings.imgCash}[method];
-  const bank=method==='ONLINE BANKING'&&(settings.bank||settings.akaun)
-    ?`<div class="bank">${settings.bank||''}<br>No akaun: <b>${settings.akaun||'—'}</b><br>Nama: ${settings.pemilik||'—'}</div>`:'';
+  const cash=method==='CASH';
   const ov=document.createElement('div'); ov.className='overlay';
   ov.innerHTML=`<div class="modal" role="dialog">
-    <h3>${method==='QR CODE'?'Imbas QR untuk bayar':method==='ONLINE BANKING'?'Maklumat pembayaran':'Bayaran tunai'}</h3>
+    ${cash?`
+    <h3>Terima kasih!</h3>
     <div class="who">${nama}</div>
-    ${img?`<img src="${img}" alt="${method}">`:`<div class="noimg">Gambar untuk ${method} belum diletakkan dalam tab TETAPAN.</div>`}
-    ${bank}
-    <div class="amount">Jumlah perlu bayar<b>${total}</b></div>
-    ${settings.nota?`<div class="nota">${settings.nota}</div>`:''}
-    <div class="btns"><button class="cancel">Batal</button><button class="done">Selesai</button></div>
+    <div class="amount">Jumlah perlu dibayar secara tunai<b>${total}</b></div>
+    <div class="nota">Sila serahkan bayaran kepada penganjur. Tekan Selesai untuk merekodkan pilihan anda.</div>`
+    :`
+    <h3>${method==='QR CODE'?'Imbas QR untuk bayar':'Maklumat pembayaran'}</h3>
+    <div class="who">${nama}</div>
+    <img src="${PAYMENT_IMG}" alt="Maklumat bayaran">
+    <div class="amount">Jumlah perlu bayar<b>${total}</b></div>`}
+    <div class="btns">${cash?'':'<button class="cancel">Batal</button>'}<button class="done">Selesai</button></div>
   </div>`;
   document.body.appendChild(ov);
-  ov.querySelector('.cancel').onclick=()=>ov.remove();
+  ov.querySelector('.cancel')?.addEventListener('click',()=>ov.remove());
   ov.querySelector('.done').onclick=()=>{
     const b=ov.querySelector('.done'); b.disabled=true; b.textContent='Merekod…';
     const rows=rowIds.split(',').map(Number);
