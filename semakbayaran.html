@@ -14,6 +14,34 @@
   h1 em{color:var(--accent);font-style:italic}
   .sub{color:var(--muted);margin:6px 0 0;font-size:14px}
   main{max-width:720px;margin:0 auto;padding:20px 20px 60px}
+  /* ---- Loader kucing ---- */
+  #loader{display:flex;flex-direction:column;align-items:center;padding:30px 0 10px;gap:18px}
+  #loader.hide{display:none}
+  .cat{position:relative;width:150px;height:90px;color:var(--ink)}
+  .cat .body{position:absolute;left:30px;top:24px;width:100px;height:42px;background:currentColor;border-radius:26px 30px 14px 22px}
+  .cat .head{position:absolute;left:106px;top:8px;width:44px;height:40px;background:currentColor;border-radius:40% 45% 45% 40%}
+  .cat .ear{position:absolute;top:-10px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:16px solid currentColor}
+  .cat .ear.l{left:4px;transform:rotate(-12deg)}.cat .ear.r{left:24px;transform:rotate(12deg)}
+  .cat .eye{position:absolute;top:16px;width:6px;height:6px;border-radius:50%;background:var(--bg);animation:blink 3s infinite}
+  .cat .eye.l{left:14px}.cat .eye.r{left:30px}
+  .cat .tail{position:absolute;left:4px;top:18px;width:36px;height:12px;background:currentColor;border-radius:12px 0 0 12px;transform-origin:right center;animation:tail .9s ease-in-out infinite alternate}
+  .cat .paw{position:absolute;top:58px;width:12px;height:28px;background:currentColor;border-radius:6px 6px 8px 8px;transform-origin:top center;animation:paw .45s infinite linear}
+  .cat .paw.p1{left:40px}.cat .paw.p2{left:56px;animation-delay:-.22s}.cat .paw.p3{left:94px;animation-delay:-.22s}.cat .paw.p4{left:110px}
+  .cat .ground{position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--line);overflow:hidden}
+  .cat .ground::before{content:"";position:absolute;left:0;width:200%;height:100%;background:repeating-linear-gradient(90deg,var(--accent) 0 10px,transparent 10px 26px);animation:ground .6s linear infinite}
+  @keyframes paw{0%{transform:rotate(14deg)}50%{transform:rotate(-14deg)}100%{transform:rotate(14deg)}}
+  @keyframes tail{from{transform:rotate(-18deg)}to{transform:rotate(24deg)}}
+  @keyframes ground{to{transform:translateX(-26px)}}
+  @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+  .loadtext{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--muted);letter-spacing:.02em}
+  .loadtext.static::after{display:none}
+  .loadtext::after{content:"";display:inline-block;width:1.6em;text-align:left;animation:dots 1.2s steps(4,end) infinite}
+  @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}100%{content:"...."}}
+  .retry{padding:10px 18px;border-radius:8px;border:0;background:var(--accent);color:#fff;font:500 14px 'IBM Plex Sans',sans-serif;cursor:pointer}
+  #app{opacity:0;transition:opacity .4s}
+  #app.show{opacity:1}
+  @media(prefers-reduced-motion:reduce){.cat *,.loadtext::after{animation:none!important}#app{transition:none}}
+
   .search input{width:100%;padding:20px 22px;font:500 20px 'IBM Plex Sans',sans-serif;border:2px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);outline:none}
   .search input:focus{border-color:var(--accent)}
   .hint{margin:10px 2px 0;font-size:13px;color:var(--muted);min-height:18px}
@@ -65,9 +93,21 @@
   <p class="sub">Taip nama untuk lihat tempahan dan jumlah bayaran.</p>
 </header>
 <main>
-  <div class="search"><input id="q" type="search" placeholder="Cth: Jamilah" autocomplete="off" autofocus></div>
-  <p class="hint" id="hint"></p>
-  <div class="results" id="results"></div>
+  <div id="loader" role="status" aria-live="polite">
+    <div class="cat" aria-hidden="true">
+      <div class="tail"></div>
+      <div class="body"></div>
+      <div class="head"><div class="ear l"></div><div class="ear r"></div><div class="eye l"></div><div class="eye r"></div></div>
+      <div class="paw p1"></div><div class="paw p2"></div><div class="paw p3"></div><div class="paw p4"></div>
+      <div class="ground"></div>
+    </div>
+    <div class="loadtext" id="loadtext">Data sedang dimuat naik</div>
+  </div>
+  <div id="app">
+    <div class="search"><input id="q" type="search" placeholder="Cth: Jamilah" autocomplete="off"></div>
+    <p class="hint" id="hint"></p>
+    <div class="results" id="results"></div>
+  </div>
 </main>
 
 <script>
@@ -111,15 +151,22 @@ const rm=n=>'RM '+Number(n).toFixed(2);
 let all=[], ready=false;
 const norm=s=>s.toUpperCase().replace(/\s+/g,' ').trim();
 
-// Muat semua data sekali, kemudian carian jadi serta-merta
-$('#hint').innerHTML='<span class="spin"></span>Menyediakan data…';
-$('#q').disabled=true;
-api.all().then(r=>{
-  if(r.error) throw new Error(r.error);
-  all=r.hits.map(h=>({...h,_n:norm(h.nama)})); ready=true;
-  $('#q').disabled=false; $('#q').focus(); $('#hint').textContent='';
-  if($('#q').value.trim()) search();
-}).catch(err);
+// Muat semua data sekali (papar loader kucing), kemudian carian jadi serta-merta
+function load(){
+  $('#loader').classList.remove('hide'); $('#app').classList.remove('show');
+  $('#loadtext').className='loadtext'; $('#loadtext').textContent='Data sedang dimuat naik';
+  $('#loader .retry')?.remove();
+  api.all().then(r=>{
+    if(r.error) throw new Error(r.error);
+    all=r.hits.map(h=>({...h,_n:norm(h.nama)})); ready=true;
+    $('#loader').classList.add('hide'); $('#app').classList.add('show'); $('#q').focus();
+    if($('#q').value.trim()) search();
+  }).catch(e=>{
+    $('#loadtext').className='loadtext static'; $('#loadtext').textContent=e.message;
+    $('#loader').insertAdjacentHTML('beforeend','<button class="retry" onclick="load()">Cuba lagi</button>');
+  });
+}
+load();
 
 $('#q').addEventListener('input',search);
 function search(){
