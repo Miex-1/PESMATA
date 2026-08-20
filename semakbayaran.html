@@ -172,7 +172,7 @@ $('#q').addEventListener('input',search);
 function search(){
   if(!ready) return;
   const v=norm($('#q').value);
-  if(v.length<2){$('#results').innerHTML='';return;}
+  if(v.length<3){$('#results').innerHTML=v.length?'<div class="empty">Sila taip sekurang-kurangnya 3 huruf.</div>':'';return;}
   show({hits:all.filter(h=>h._n.includes(v))});
 }
 
