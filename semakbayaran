@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semak Bayaran — Pesmata</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#E9EEF2;--paper:#fff;--ink:#17212B;--muted:#66737F;--line:#D3DBE2;--accent:#8B2F5B;--accent-soft:#F4E4EC;--gold:#E8B84A;--green:#2E9E6B;--green-soft:#E3F5EC}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;min-height:100vh}
+  header{max-width:720px;margin:0 auto;padding:40px 20px 8px}
+  h1{font-family:'DM Serif Display',serif;font-weight:400;font-size:clamp(32px,6vw,46px);margin:0;line-height:1}
+  h1 em{color:var(--accent);font-style:italic}
+  .sub{color:var(--muted);margin:6px 0 0;font-size:14px}
+  main{max-width:720px;margin:0 auto;padding:20px 20px 60px}
+  .search input{width:100%;padding:20px 22px;font:500 20px 'IBM Plex Sans',sans-serif;border:2px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);outline:none}
+  .search input:focus{border-color:var(--accent)}
+  .hint{margin:10px 2px 0;font-size:13px;color:var(--muted);min-height:18px}
+  .results{margin-top:26px;display:grid;gap:18px}
+  .slip{background:var(--paper);border-radius:6px;padding:26px 28px;font-family:'IBM Plex Mono',monospace;box-shadow:0 1px 2px rgba(23,33,43,.06),0 10px 30px -14px rgba(23,33,43,.25);position:relative}
+  .slip::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:10px;background:radial-gradient(circle at 8px 10px,var(--bg) 6px,transparent 6.5px) 0 0/16px 16px repeat-x}
+  .name{font-family:'DM Serif Display',serif;font-size:24px;margin:0 0 2px}
+  .tel{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .rule{border:0;border-top:1px dashed var(--line);margin:12px 0}
+  .row{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:6px 0}
+  .row small{color:var(--muted);margin-left:8px}
+  .total{display:flex;justify-content:space-between;align-items:baseline;padding-top:10px;font-weight:600;font-size:15px}
+  .total .amt{font-size:26px;font-family:'DM Serif Display',serif;font-weight:400;background:linear-gradient(transparent 55%,var(--gold) 55%);padding:0 4px}
+  .pay{margin-top:18px;font-family:'IBM Plex Sans',sans-serif}
+  .pay p{margin:0 0 10px;font-size:13px;font-weight:500}
+  .methods{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .methods button{padding:14px 8px;border:2px solid var(--line);border-radius:10px;background:var(--paper);font:500 14px 'IBM Plex Sans',sans-serif;cursor:pointer;color:var(--ink)}
+  .methods button:hover,.methods button.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .methods button:disabled{opacity:.5;cursor:wait}
+  .paid{margin-top:16px;padding:14px 16px;border-radius:10px;background:var(--green-soft);color:#1B5E3E;font-family:'IBM Plex Sans',sans-serif;font-size:14px}
+  .paid b{display:block;font-size:15px}
+  .paid.wait{background:#FFF6DD;color:#6B5300}
+  .details{margin-top:12px;padding:14px 16px;background:#F6F8FA;border-radius:10px;font-size:13px;line-height:1.7}
+  .details img{max-width:220px;width:100%;display:block;margin:8px auto 0;border-radius:8px}
+  .empty{text-align:center;padding:40px 20px;color:var(--muted)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media(max-width:420px){.methods{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Semak <em>Order</em></h1>
+  <p class="sub">Taip nama untuk lihat tempahan, jumlah bayaran dan pilih cara bayar.</p>
+</header>
+<main>
+  <div class="search"><input id="q" type="search" placeholder="Cth: Jamilah" autocomplete="off" autofocus></div>
+  <p class="hint" id="hint"></p>
+  <div class="results" id="results"></div>
+</main>
+
+<script>
+// >>> TAMPAL URL WEB APP APPS SCRIPT AWAK DI SINI <<<
+const API='https://script.google.com/macros/s/AKfycbzBhZtEt8Rfeea0FtsRhN3ajQXmAZGWKO4jybeLniRSg0yT7lQJmZ9H6Kmf9dc1q3FALw/exec';
+
+const api={
+  search:q=>fetch(API+'?action=search&q='+encodeURIComponent(q)).then(r=>r.json()),
+  pay:(rows,method)=>fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'pay',rows,method})}).then(r=>r.json())
+};
+const $=s=>document.querySelector(s);
+const rm=n=>'RM '+Number(n).toFixed(2);
+let timer, settings={}, lastData=[];
+
+$('#q').addEventListener('input',()=>{
+  clearTimeout(timer);
+  const v=$('#q').value.trim();
+  if(v.length<2){$('#results').innerHTML='';$('#hint').textContent='';return;}
+  $('#hint').innerHTML='<span class="spin"></span>Mencari…';
+  timer=setTimeout(()=>api.search(v).then(r=>r.error?err(new Error(r.error)):show(r)).catch(err),400);
+});
+
+function err(e){$('#hint').textContent='Ralat: '+e.message;}
+
+function show(res){
+  settings=res.settings; lastData=res.hits; $('#hint').textContent='';
+  if(!res.hits.length){$('#results').innerHTML=`<div class="empty">Tiada order untuk "${$('#q').value}".</div>`;return;}
+  const groups={};
+  // Gabung order jika nama asas sama (abaikan teks dalam kurungan, cth "(ANAK)")
+  const baseName=n=>n.toUpperCase().replace(/\s*[\(\[].*?[\)\]]\s*/g,' ').replace(/\s+/g,' ').trim();
+  res.hits.forEach(h=>{const k=baseName(h.nama);(groups[k]=groups[k]||[]).push(h);});
+  $('#results').innerHTML=Object.values(groups).slice(0,20).map(renderSlip).join('');
+}
+
+function renderSlip(g){
+  const total=g.reduce((s,h)=>s+h.harga,0);
+  const baseName=n=>n.toUpperCase().replace(/\s*[\(\[].*?[\)\]]\s*/g,' ').replace(/\s+/g,' ').trim();
+  const base=baseName(g[0].nama);
+  const rows=g.map(h=>{const tag=h.nama.match(/[\(\[].*?[\)\]]/); return `<div class="row"><span>${h.jenis}<small>${h.saiz}${tag?' · '+tag[0]:''}</small></span><span>${rm(h.harga)}</span></div>`;}).join('');
+  const paidRows=g.filter(h=>h.cara);
+  const rowIds=g.map(h=>h.row).join(',');
+  let footer;
+  if(paidRows.length===g.length){
+    const h=paidRows[0];
+    footer=statusBox(h.cara,h.status,h.tarikh);
+  }else{
+    footer=`<div class="pay" id="pay-${g[0].row}">
+      <p>Pilih cara bayaran:</p>
+      <div class="methods">
+        <button onclick="pay('${rowIds}','CASH',this)">Cash</button>
+        <button onclick="pay('${rowIds}','QR CODE',this)">QR Code</button>
+        <button onclick="pay('${rowIds}','ONLINE BANKING',this)">Online Banking</button>
+      </div></div>`;
+  }
+  return `<article class="slip" data-rows="${rowIds}">
+    <h2 class="name">${base}</h2><div class="tel">${g.find(h=>h.tel)?.tel||''}${g.length>1?`<br>${g.length} order digabungkan`:''}</div>
+    <hr class="rule">${rows}<hr class="rule">
+    <div class="total"><span>Jumlah bayaran</span><span class="amt">${rm(total)}</span></div>
+    ${footer}</article>`;
+}
+
+function statusBox(cara,status,tarikh){
+  const wait=status!=='DIBAYAR';
+  let info='';
+  if(cara==='QR CODE') info=`<div class="details">Imbas QR di bawah dan bayar jumlah di atas.${settings.qr?`<img src="${settings.qr}" alt="QR bayaran">`:'<br><i>(QR belum diletakkan — sila isi tab TETAPAN)</i>'}</div>`;
+  if(cara==='ONLINE BANKING') info=`<div class="details">Sila transfer ke:<br><b>${settings.bank||'—'}</b><br>No akaun: <b>${settings.akaun||'—'}</b><br>Nama: <b>${settings.pemilik||'—'}</b></div>`;
+  if(cara==='CASH') info=`<div class="details">Sila bayar tunai kepada penganjur.</div>`;
+  return `<div class="paid ${wait?'wait':''}"><b>${cara} — ${status}</b>Direkod pada ${tarikh}</div>${info}`;
+}
+
+function pay(rowIds,method,btn){
+  const wrap=btn.closest('.pay');
+  wrap.querySelectorAll('button').forEach(b=>{b.disabled=true;if(b===btn)b.classList.add('sel');});
+  const rows=rowIds.split(',').map(Number);
+  api.pay(rows,method).then(r=>{
+    if(r.error) throw new Error(r.error);
+    wrap.outerHTML=statusBox(method,r.status,r.tarikh);
+  }).catch(e=>{
+    alert('Gagal rekod: '+e.message);
+    wrap.querySelectorAll('button').forEach(b=>{b.disabled=false;b.classList.remove('sel');});
+  });
+}
+</script>
+</body>
+</html>
